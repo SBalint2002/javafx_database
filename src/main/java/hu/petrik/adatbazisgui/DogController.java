@@ -35,6 +35,7 @@ public class DogController {
     private Button submitButton;
     @FXML
     private Button cancelButton;
+    private int updateId;
 
     @FXML
     private void initialize() {
@@ -74,24 +75,34 @@ public class DogController {
 
     @FXML
     public void updateClick(ActionEvent actionEvent) {
+        Dog selected = getSelectedDog();
+        if (selected == null) return;
+        updateId = selected.getId();
+        nameInput.setText(selected.getName());
+        ageInput.getValueFactory().setValue(selected.getAge());
+        breedInput.setText(selected.getBreed());
+        setStateToUpdate();
+    }
+
+    private void setStateToUpdate() {
+        submitButton.setText("Update");
+        dogTable.setDisable(true);
+        updateButton.setDisable(true);
+        deleteButton.setDisable(true);
     }
 
     @FXML
     public void deleteClick(ActionEvent actionEvent) {
-        int selectedIndex = dogTable.getSelectionModel().getSelectedIndex();
-        if (selectedIndex == -1) {
-            alert(Alert.AlertType.WARNING,
-                    "Törléshez előbb válasszon ki kutyát a táblázatból", "");
-            return;
-        }
+        Dog selected = getSelectedDog();
+        if (selected == null) return;
+
         Optional<ButtonType> optionalButtonType = alert(Alert.AlertType.CONFIRMATION,
-                "Biztos, hogy törölni szeretné a viláasztott kutyát?", "");
+                "Biztos, hogy törölni szeretné a kiválasztott kutyát?", "");
         if (optionalButtonType.isEmpty() ||
                 (!optionalButtonType.get().equals(ButtonType.OK) &&
                         !optionalButtonType.get().equals(ButtonType.YES))) {
             return;
         }
-        Dog selected = dogTable.getSelectionModel().getSelectedItem();
 
         try {
             if (db.deleteDog(selected.getId())) {
@@ -103,6 +114,16 @@ public class DogController {
         } catch (SQLException e) {
             sqlAlert(e);
         }
+    }
+
+    private Dog getSelectedDog() {
+        int selectedIndex = dogTable.getSelectionModel().getSelectedIndex();
+        if (selectedIndex == -1) {
+            alert(Alert.AlertType.WARNING,
+                    "Előbb válasszon ki kutyát a táblázatból", "");
+            return null;
+        }
+        return dogTable.getSelectionModel().getSelectedItem();
     }
 
     @FXML
@@ -118,28 +139,56 @@ public class DogController {
             alert(Alert.AlertType.WARNING, "Fajta megadása kötelező", "");
             return;
         }
+        if (submitButton.getText().equals("Update")) {
+            updateDog(name, age, breed);
+        } else {
+            createDog(name, age, breed);
+        }
+    }
+
+    private void updateDog(String name, int age, String breed) {
+        Dog dog = new Dog(updateId, name, age, breed);
+        try {
+            if (db.updateDog(dog)) {
+                alert(Alert.AlertType.WARNING, "Sikeres módosítás", "");
+            } else {
+                alert(Alert.AlertType.WARNING, "Sikertelen módosítás", "");
+            }
+            resetForm();
+            readDogs();
+        } catch (SQLException e) {
+            sqlAlert(e);
+        }
+    }
+
+    private void createDog(String name, int age, String breed) {
         Dog dog = new Dog(name, age, breed);
         try {
             if (db.createDog(dog)) {
                 alert(Alert.AlertType.WARNING, "Sikeres felvétel", "");
                 resetForm();
-                readDogs();
             } else {
                 alert(Alert.AlertType.WARNING, "Sikertelen felvétel", "");
             }
+            readDogs();
         } catch (SQLException e) {
             sqlAlert(e);
         }
-
     }
 
     private void resetForm() {
         nameInput.setText("");
         ageInput.getValueFactory().setValue(0);
         breedInput.setText("");
+
+        submitButton.setText("Submit");
+        dogTable.setDisable(false);
+        updateButton.setDisable(false);
+        deleteButton.setDisable(false);
     }
 
     @FXML
     public void cancelClick(ActionEvent actionEvent) {
+        resetForm();
     }
 }
